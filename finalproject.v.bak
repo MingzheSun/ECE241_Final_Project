@@ -1,0 +1,254 @@
+// Part 2 skeleton
+
+module lab7part2
+	(
+		CLOCK_50,						//	On Board 50 MHz
+		// Your inputs and outputs here
+		KEY,	
+		SW,	
+		LEDR,// On Board Keys
+		// The ports below are for the VGA output.  Do not change.
+		VGA_CLK,   						//	VGA Clock
+		VGA_HS,							//	VGA H_SYNC
+		VGA_VS,							//	VGA V_SYNC
+		VGA_BLANK_N,						//	VGA BLANK
+		VGA_SYNC_N,						//	VGA SYNC
+		VGA_R,   						//	VGA Red[9:0]
+		VGA_G,	 						//	VGA Green[9:0]
+		VGA_B   						//	VGA Blue[9:0]
+	);
+
+	input			CLOCK_50;				//	50 MHz
+	input	[3:0]	KEY;	
+	input [9:0] SW;
+	output [9:0]	LEDR;
+	// Declare your inputs and outputs here
+	// Do not change the following outputs
+	output			VGA_CLK;   				//	VGA Clock
+	output			VGA_HS;					//	VGA H_SYNC
+	output			VGA_VS;					//	VGA V_SYNC
+	output			VGA_BLANK_N;				//	VGA BLANK
+	output			VGA_SYNC_N;				//	VGA SYNC
+	output	[7:0]	VGA_R;   				//	VGA Red[7:0] Changed from 10 to 8-bit DAC
+	output	[7:0]	VGA_G;	 				//	VGA Green[7:0]
+	output	[7:0]	VGA_B;   				//	VGA Blue[7:0]
+	
+	wire resetn;
+	assign resetn = KEY[0];
+	
+	// Create the colour, x, y and writeEn wires that are inputs to the controller.
+
+	wire [2:0] colour;
+	wire [7:0] x;
+	wire [6:0] y;
+	wire writeEn;
+	wire ld_x,ld_y;
+	wire go_clear;
+	wire go_plot;
+	wire done;
+	wire finish;
+	assign writeEn = ~done;
+	assign LEDR[0]=1;
+	assign LEDR[1] = done;
+	assign LEDR[2] = ld_x;
+	assign LEDR[3]= ld_y;
+	assign LEDR[4]=go_plot;
+	assign LEDR[5]=go_clear;
+	assign LEDR[6]=writeEn;
+	// Create an Instance of a VGA controller - there can be only one!
+	// Define the number of colours as well as the initial background
+	// image file (.MIF) for the controller.
+	vga_adapter VGA(
+			.resetn(resetn),
+			.clock(CLOCK_50),
+			.colour(colour),
+			.x(x),
+			.y(y),
+			.plot(writeEn),
+			/* Signals for the DAC to drive the monitor. */
+			.VGA_R(VGA_R),
+			.VGA_G(VGA_G),
+			.VGA_B(VGA_B),
+			.VGA_HS(VGA_HS),
+			.VGA_VS(VGA_VS),
+			.VGA_BLANK(VGA_BLANK_N),
+			.VGA_SYNC(VGA_SYNC_N),
+			.VGA_CLK(VGA_CLK));
+		defparam VGA.RESOLUTION = "160x120";
+		defparam VGA.MONOCHROME = "FALSE";
+		defparam VGA.BITS_PER_COLOUR_CHANNEL = 1;
+		defparam VGA.BACKGROUND_IMAGE = "black.mif";
+		
+		datapath pth(CLOCK_50,KEY[0],SW[6:0],SW[9:7],ld_x,ld_y,go_plot,go_clear,x,y,colour,done,finish);
+		control con(CLOCK_50,KEY[0],~KEY[2],~KEY[1],~KEY[3],done,finish,ld_x,ld_y,go_plot,go_clear);
+		
+endmodule			
+	// Put your code here. Your code should produce signals x,y,colour and writeEn
+	// for the VGA controller, in addition to any other functionality your design may require.
+	module datapath(clk,resetn,datain,colorin,ld_x,ld_y,plot,clear,xloc,yloc,colorout,done,finish);
+	input clk,resetn;
+	input [6:0]datain;
+	input [2:0] colorin;
+	input ld_x,ld_y;     //enable signal
+	input plot;               //enable
+	input clear;               //cleaer screen
+	output reg [7:0]xloc;
+	output reg[6:0]yloc;
+	output reg[2:0]colorout;
+	output reg done;
+	output reg finish;
+	reg [7:0] x;
+	reg [6:0] y;
+	reg [2:0] color;
+	reg [7:0] clearx;
+	reg [6:0] cleary;
+	reg [1:0] plotx;
+	reg [1:0] ploty;
+	always@(posedge clk)
+	begin
+		if(!resetn)
+		begin
+		x<= 8'b0;
+		y<= 7'b0;
+		color<= 3'b0;
+		done<=1;
+		finish<=0;
+		clearx<=0;
+		cleary<=0;
+		plotx<=0;
+		ploty<=0;
+		end	
+		else if(clear)begin
+				colorout<=3'b0;
+				clearx<=clearx+1;
+				done<=0;
+				if(clearx==8'b10100001)
+					begin
+					clearx<=0;
+					cleary<=cleary+1;end
+				if(cleary==7'b1111000)
+					begin
+					cleary<=0;
+					clearx<=0;
+					done<=1;
+					finish<=1;end
+				xloc<=clearx;
+				yloc<=cleary;
+			end
+
+		else if(ld_x)begin 
+				x[7:0]<={1'b0,datain}; //plotin ? xloc:datain;
+				done<=1;end
+		else if(ld_y)begin
+				y[6:0]<= datain;//plotin ? yloc:datain;
+				color<=colorin;
+				finish<=0;end//plotin ? colorout:colorin;
+		else if(plot)begin
+				colorout<=color;
+				done<=0;
+				if(plotx==2'b11)
+					begin
+					plotx<=2'b0;
+					ploty<=ploty+1'b1;end
+				
+				if((ploty==2'b11)&&(plotx==2'b11))
+					begin
+					xloc<=x+plotx;
+					yloc<=y+ploty;	
+					/*
+					ploty<=2'b0;
+					plotx<=2'b0;*/
+				
+					finish<= 1;
+					end
+				
+					
+				
+				xloc<=x+plotx;
+				yloc<=y+ploty;	
+				plotx<=plotx+1'b1;
+			end
+		
+
+	
+	end
+
+	
+	
+	endmodule
+	
+	
+	module control(
+    input clk,
+    input resetn, //k0
+    input clear,  //k2
+	 input plot,	//k1
+	 input datain, //k3
+	 input done,
+	 input finish,
+
+	output reg ld_x,ld_y,     //enable signal
+	output reg go_plot,               //enable
+	output reg go_clear			//need to finssh
+
+    );
+	 
+	 
+	 reg [5:0] current_state, next_state; 
+	 localparam 			loadx =0,
+					loadxwait=1,
+					loady=2,
+					loadywait=3,
+					plotall=4,
+					clearall=5;
+					
+	 
+	 always@(*)
+	 begin :state_table
+	 case(current_state)
+		loadx:next_state=datain?loadxwait:loadx;
+		loadxwait:next_state=datain?loadxwait:loady;
+		loady:next_state=datain?loadywait:loady;
+		loadywait:next_state=plot?plotall:loadywait;
+		plotall:next_state=finish?loadx:plotall;
+		clearall:next_state=finish?loadx:clearall;
+		endcase
+		end
+		
+		
+		always@(*)
+		begin: enable_signals
+		ld_x=0;
+		ld_y=0;
+		go_plot=0;
+		go_clear=0;
+		case(current_state)
+		loadx:ld_x=1;
+		loady:ld_y=1;
+		plotall:go_plot=1;
+		clearall :go_clear =1;
+		endcase
+		end
+		
+		always@(posedge clk)
+		begin:state_FFS
+			if(!resetn)
+				current_state<=loadx;
+				else if (clear)
+				current_state<=clearall;
+				else
+				current_state<=next_state;
+				
+		end
+		
+		
+	 endmodule 
+	 
+	 
+	 
+	 
+	 
+	 
+	 
+
+

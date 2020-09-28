@@ -1,0 +1,1640 @@
+// Part 2 skeleton
+
+module finalproject
+	(
+		CLOCK_50,						//	On Board 50 MHz
+		// Your inputs and outputs here
+		KEY,	
+		SW,	
+		LEDR,
+		HEX0,
+		HEX1,// On Board Keys
+		// The ports below are for the VGA output.  Do not change.
+		VGA_CLK,   						//	VGA Clock
+		VGA_HS,							//	VGA H_SYNC
+		VGA_VS,							//	VGA V_SYNC
+		VGA_BLANK_N,						//	VGA BLANK
+		VGA_SYNC_N,						//	VGA SYNC
+		VGA_R,   						//	VGA Red[9:0]
+		VGA_G,	 						//	VGA Green[9:0]
+		VGA_B,  						//	VGA Blue[9:0]
+		PS2_CLK,
+		PS2_DAT
+	);
+
+	input			CLOCK_50;				//	50 MHz
+	input	[3:0]	KEY;	
+	input [9:0] SW;
+	output [9:0]	LEDR;
+	output [6:0]HEX0;
+	output [6:0]HEX1;
+	// Declare your inputs and outputs here
+	// Do not change the following outputs
+	output			VGA_CLK;   				//	VGA Clock
+	output			VGA_HS;					//	VGA H_SYNC
+	output			VGA_VS;					//	VGA V_SYNC
+	output			VGA_BLANK_N;				//	VGA BLANK
+	output			VGA_SYNC_N;				//	VGA SYNC
+	output	[7:0]	VGA_R;   				//	VGA Red[7:0] Changed from 10 to 8-bit DAC
+	output	[7:0]	VGA_G;	 				//	VGA Green[7:0]
+	output	[7:0]	VGA_B;   				//	VGA Blue[7:0]
+	
+	wire resetn;
+	assign resetn = KEY[0];
+	
+	// Create the colour, x, y and writeEn wires that are inputs to the controller.
+
+	wire [23:0] colour;
+	wire [7:0] x;
+	wire [6:0] y;
+	wire writeEn;
+	wire ld_x,ld_y;
+	wire go_clear;
+	wire go_plot;
+	wire go_start;
+	wire go_rotate;
+	wire go_clearplot;
+	wire go_clearrotate;
+	wire go_flat;
+	wire go_plotlandscape;
+	wire go_stick;
+	wire done;
+	wire finish;
+	wire finish_clearplot;
+	wire finish_clearrotate;
+	wire finish_rotate;
+	wire finish_flat;
+	wire finish_draw;
+	wire [6:0] length;
+	wire [1:0]enoughlen;
+	wire go_standby;
+	wire [6:0]length_required;
+	wire [6:0]width_of_next;
+	wire finish_landscape;
+		wire hz;
+	assign writeEn = ~done;
+
+	assign LEDR[0]=resetkeyboard1;
+	assign LEDR[1] = resetkeyboard2;
+	assign LEDR[2] =resetkeyboard3;
+	assign LEDR[3]= go_stick;
+	assign LEDR[4]=go_plotlandscape;
+	assign LEDR[5]=stick_formed;
+	assign LEDR[6]=R;
+	assign LEDR[7]=enoughlen[0];
+	assign LEDR[8]=enoughlen[1];
+	assign LEDR[9]=resetkeyboard;
+	 hex h0(score[3],score[2],score[1],score[0], HEX0[0],HEX0[1],HEX0[2],HEX0[3],HEX0[4],HEX0[5],HEX0[6]);
+	  hex h1(0,score[6],score[5],score[4], HEX1[0],HEX1[1],HEX1[2],HEX1[3],HEX1[4],HEX1[5],HEX1[6]);
+	// Create an Instance of a VGA controller - there can be only one!
+	// Define the number of colours as well as the initial background
+	// image file (.MIF) for the controller.
+	vga_adapter VGA(
+			.resetn(~R),
+			.clock(CLOCK_50),
+			.colour(colour),
+			.x(x),
+			.y(y),
+			.plot(writeEn),
+			/* Signals for the DAC to drive the monitor. */
+			.VGA_R(VGA_R),
+			.VGA_G(VGA_G),
+			.VGA_B(VGA_B),
+			.VGA_HS(VGA_HS),
+			.VGA_VS(VGA_VS),
+			.VGA_BLANK(VGA_BLANK_N),
+			.VGA_SYNC(VGA_SYNC_N),
+			.VGA_CLK(VGA_CLK));
+		defparam VGA.RESOLUTION = "160x120";
+		defparam VGA.MONOCHROME = "FALSE";
+		defparam VGA.BITS_PER_COLOUR_CHANNEL = 8;
+		defparam VGA.BACKGROUND_IMAGE = "TEST LAND.mif";
+		
+
+	wire enter;
+	inout PS2_CLK;
+	inout PS2_DAT;
+	wire received_data_en;
+	wire [7:0]received_data;
+	wire space;
+	wire R;
+PS2_Controller ps2 (
+	// Inputs
+	.CLOCK_50(CLOCK_50),
+	.reset(resetkeyboard),
+	// Bidirectionals
+	.PS2_CLK(PS2_CLK),					// PS2 Clock
+ 	.PS2_DAT(PS2_DAT),					// PS2 Data
+
+	// Outputs
+
+	.received_data(received_data),
+	.received_data_en(received_data_en)			// If 1 - new data has been received
+);
+wire resetkeyboard;
+wire resetkeyboard1;
+wire resetkeyboard2;
+wire resetkeyboard3;
+
+assign resetkeyboard=resetkeyboard1||resetkeyboard2||resetkeyboard3;
+
+keyboardSPACE key11(CLOCK_50,KEY[0],received_data_en,received_data,go_plotfigure,space,resetkeyboard1);
+keyboardENTER key12(CLOCK_50,KEY[0],received_data_en,received_data,enter,resetkeyboard2);	
+keyboardR key13(CLOCK_50,KEY[0],received_data_en,received_data,R,resetkeyboard3);	
+	datapath pth(
+	.clk(CLOCK_50),
+	.resetn(~R), //key[0]
+	.go_plot(go_plot),              //enable
+	.go_clear(go_clear),//clear screen
+	.go_start(go_start),
+    .go_rotate(go_rotate),
+	.go_flat(go_flat),
+	.go_standby(go_standby),
+	.go_clearplot(go_clearplot),	
+	.go_clearrotate(go_clearrotate),
+	.go_plotlandscape(go_plotlandscape),
+	.go_clearlandandsky(go_clearlandandsky),
+	.go_reset_handshakes(go_reset_handshakes),
+	.go_gameover(go_gameover),
+	.go_plotfigure(go_plotfigure),
+	.go_clearfigure(go_clearfigure),
+	.go_resetsteve(go_resetsteve),
+	.go_plotstartfigure(go_plotstartfigure),
+	.go_setupwelcome(go_setupwelcome),
+	.xloc_figure(xloc_figure),
+	.yloc_figure(yloc_figure),
+	.length(length),
+	.length_required(length_required),
+	.width_of_next(width_of_next),
+	.xloc(x),
+	.yloc(y),
+	.colorout(colour),
+	.done(done),
+	.finish(finish),
+	.finish_draw(finish_draw),
+	.finish_clearplot(finish_clearplot),
+	.finish_rotate(finish_rotate),
+	.finish_clearrotate(finish_clearrotate),
+	.finish_flat(finish_flat),
+	.finish_landscape(finish_landscape),
+	.finish_landandsky(finish_landandsky),
+	.finish_gameover(finish_gameover),
+	.finish_figure(finish_figure),
+	.finish_erasefigure(finish_erasefigure),
+	.finish_startfigure(finish_startfigure),
+	.finish_setupwelcome(finish_setupwelcome),
+	.debuger(),
+	.finallength(finallength)
+	);
+	wire [6:0]finallength;	
+	wire finish_figure;
+	wire finish_erasefigure;
+	wire [6:0]score;
+	
+	
+	
+	stick_cycle Sc(
+    .clk(CLOCK_50),
+    .resetn(~go_resetstick), //k0
+	.clear(~KEY[1]), //k1
+	.pressed(space),//(~KEY[3]), //k3
+	.key2(0),
+	.received_data(received_data),
+	.received_data_en(received_data_en),
+
+	
+	.finish(finish),
+	 .finish_draw(finish_draw),
+	.finish_clearplot(finish_clearplot),
+	.finish_rotate(finish_rotate),
+	 .finish_clearrotate(finish_clearrotate),
+	 .finish_flat(finish_flat),
+	.length_required(length_required),
+	.finallength(finallength),	
+	.width_of_next(width_of_next), 
+	.go_stick(go_stick),					//new
+	
+	.go_plot(go_plot),               //enable
+	.go_clear(go_clear),			//need to finssh
+	.go_start(go_start),
+	.go_rotate(go_rotate),
+	.go_flat(go_flat),
+	.go_standby(go_standby),
+	.go_clearplot(go_clearplot),	
+	.go_clearrotate(go_clearrotate),
+	.length(length),
+	.enoughlen(enoughlen),
+	
+	.stick_formed(stick_formed)            //new
+    );
+	
+	wire game_start;   //will be given by tm
+	wire landscape_formed;
+	wire stick_formed;
+	wire go_landscape;
+	wire go_resetstick;
+	wire go_compare;
+	wire go_gameover;
+	wire finish_landandsky;
+	wire go_reset_handshakes;
+	wire finish_gameover;
+	wire go_clearlandandsky;
+	wire finish_startfigure;
+	wire go_plotstartfigure;
+	wire finish_setupwelcome;
+	wire go_setupwelcome;
+	
+	game_cycle gc( 
+	.clk(CLOCK_50),
+    .resetn(~R),
+	.key2(enter),  //~KEY[2] 
+	.game_start(game_start),
+	.landscape_formed(landscape_formed),
+	.stick_formed(stick_formed),
+	.figure_formed(figure_formed),
+	.enoughlen(enoughlen),
+	.finish_landandsky(finish_landandsky),
+	.finish_gameover(finish_gameover),
+	.finish_startfigure(finish_startfigure),
+	.finish_setupwelcome(finish_setupwelcome),
+	.restart(SW[8]),
+	.go_landscape(go_landscape),
+	.go_resetstick(go_resetstick),
+	.go_stick(go_stick),
+	.go_compare(go_compare),
+	.go_gameover(go_gameover),
+	.go_clearlandandsky(go_clearlandandsky),
+	.go_reset_handshakes(go_reset_handshakes),
+	.go_figure_cycle(go_figure_cycle),
+	.go_resetmovefigure(go_resetmovefigure),
+	.go_plotstartfigure(go_plotstartfigure),
+	.go_setupwelcome(go_setupwelcome),
+	.length_required(length_required),
+	.width_of_next(width_of_next),
+	.score(score)
+	);
+	
+	landscape_cycle lc( 
+	.clk(CLOCK_50),
+    .resetn(~R),
+	.go_landscape(go_landscape),
+	.finish_landscape(finish_landscape),
+	.go_plotlandscape(go_plotlandscape),
+	.landscape_formed(landscape_formed)
+	);
+	
+	figure_cycle fc(
+     .clk(CLOCK_50),
+     .resetn(~go_resetmovefigure), //k0
+	 .finish_figure(finish_figure),
+	 .finish_erasefigure(finish_erasefigure),
+	 .length_required(length_required),
+	 .finallength(finallength),
+	 .go_figure_cycle(go_figure_cycle),
+	 .go_plotfigure(go_plotfigure),               
+	 .go_clearfigure(go_clearfigure),		
+	.go_resetsteve(go_resetsteve),
+	.debugerrr(1),
+	 .xloc_figure(xloc_figure),
+	 .yloc_figure(yloc_figure),
+	 .figure_formed(figure_formed),
+	 .hz(HZ)
+    );	
+	wire go_figure_cycle;
+	wire go_plotfigure;
+	wire go_clearfigure;
+	wire [7:0]xloc_figure;
+	wire [6:0]yloc_figure;
+	wire figure_formed;
+	wire go_resetmovefigure;
+	wire go_resetsteve;
+	
+		
+		
+		
+endmodule			
+
+module keyboardSPACE (
+    input clk,
+    input resetn,
+	input received_data_en,
+	input [7:0]received_data,
+	input go_plotfigure,
+	output reg space,
+	output reg resetkeyboard
+		
+    );
+
+	 reg [6:0] current_state, next_state; 
+	 localparam waitkey =0,
+					keypressed =1,
+					releasekey=2,
+					wait1=3,
+					wait2=4,
+					wait3=5,
+					wait4=6;
+	 always@(*)
+	 begin :state_table
+	 case(current_state)
+		waitkey:next_state=(received_data==8'h29&&received_data_en)?keypressed:waitkey;
+		keypressed:next_state=(received_data==8'hF0)?releasekey:keypressed;
+		releasekey:next_state=(go_plotfigure)?wait4:releasekey;
+	wait1:next_state=wait2;
+	wait2:next_state=wait3;
+		wait3:next_state=wait4;
+		wait4:next_state=waitkey;
+		endcase
+		end
+		
+		
+		always@(*)
+		begin: enable_signals
+		space=0;
+		resetkeyboard=0;
+		case(current_state)
+		keypressed:space=1;
+		releasekey:resetkeyboard=1;
+		wait1:resetkeyboard=1;
+		wait2:resetkeyboard=1;
+		wait3:resetkeyboard=1;
+		wait4:resetkeyboard=1;
+		endcase
+		end
+		
+		always@(posedge clk)
+		begin:state_FFS
+			if(!resetn)
+				current_state<=waitkey;
+				else
+				current_state<=next_state;
+		end
+		
+	 endmodule 
+	 
+	 module keyboardENTER (
+   input clk,
+    input resetn,
+	input received_data_en,
+	input [7:0]received_data,
+	output reg enter,
+	output reg resetkeyboard
+	
+    );
+
+	 reg [6:0] current_state, next_state; 
+	 localparam waitkey =0,
+					keypressed =1,
+					releasekey=2,
+					wait1=3,
+					wait2=4,
+					wait3=5,
+					wait4=6;
+	 
+	 always@(*)
+	 begin :state_table
+	 case(current_state)
+		waitkey:next_state=(received_data==8'h5A&&received_data_en)?keypressed:waitkey;
+		keypressed:next_state=(received_data==8'hF0)?releasekey:keypressed;
+		releasekey:next_state=wait1;
+		wait1:next_state=wait2;
+		wait2:next_state=wait3;
+		wait3:next_state=wait4;
+		wait4:next_state=waitkey;
+		endcase
+		end
+		
+		
+		always@(*)
+		begin: enable_signals
+		enter=0;
+		resetkeyboard=0;
+		case(current_state)
+		keypressed:enter=1;
+		releasekey:resetkeyboard=1;
+		wait1:resetkeyboard=1;
+		wait2:resetkeyboard=1;
+		wait3:resetkeyboard=1;
+		wait4:resetkeyboard=1;
+		endcase
+		end
+		
+		always@(posedge clk)
+		begin:state_FFS
+			if(!resetn)
+				current_state<=waitkey;
+				else
+				current_state<=next_state;
+		end
+		
+	 endmodule 
+	 
+ module keyboardR (
+    input clk,
+    input resetn,
+	input received_data_en,
+	input [7:0]received_data,
+	output reg R,
+	output reg resetkeyboard
+	
+    );
+
+	 reg [6:0] current_state, next_state; 
+	 localparam waitkey =0,
+					keypressed =1,
+					releasekey=2,
+					wait1=3,
+					wait2=4,
+					wait3=5,
+					wait4=6;
+	 
+	 always@(*)
+	 begin :state_table
+	 case(current_state)
+		waitkey:next_state=(received_data==8'h2D&&received_data_en)?keypressed:waitkey;
+		keypressed:next_state=(received_data==8'hF0)?releasekey:keypressed;
+		releasekey:next_state=wait1;
+		wait1:next_state=wait2;
+		wait2:next_state=wait3;
+		wait3:next_state=wait4;
+		wait4:next_state=waitkey;
+		endcase
+		end
+		
+		
+		always@(*)
+		begin: enable_signals
+		R=0;
+		resetkeyboard=0;
+		case(current_state)
+		keypressed:R=1;
+		releasekey:resetkeyboard=1;
+		wait1:resetkeyboard=1;
+		wait2:resetkeyboard=1;
+		wait3:resetkeyboard=1;
+		wait4:resetkeyboard=1;
+		endcase
+		end
+		
+		always@(posedge clk)
+		begin:state_FFS
+			if(!resetn)
+				current_state<=waitkey;
+				else
+				current_state<=next_state;
+		end
+		
+	 endmodule 
+	 
+
+		//153 217 234      100110011101100111101010
+	// Put your code here. Your code should produce signals x,y,colour and writeEn
+	// for the VGA controller, in addition to any other functionality your design may require.
+	module datapath(
+	input clk,
+	input resetn,
+	input go_plot,              //enable
+	input go_clear,//clear screen
+	input go_start,
+    input go_rotate,
+	input go_flat,
+	input go_standby,
+	input go_clearplot,	
+	input go_clearrotate,
+	input go_plotlandscape,
+	input go_clearlandandsky,
+	input go_reset_handshakes,
+	input go_gameover,
+	input go_plotfigure,
+	input go_clearfigure,
+	input go_resetsteve,
+	input go_plotstartfigure,
+	input go_setupwelcome,
+	input [7:0]xloc_figure,
+	input [6:0]yloc_figure,
+	input [6:0]length,
+	input [6:0]length_required,
+	input [6:0]width_of_next,
+	output reg [7:0]xloc,
+	output reg[6:0]yloc,
+	output reg[23:0]colorout,
+	output reg done,
+	output reg finish,
+	output reg finish_draw,
+	 output reg finish_clearplot,
+	 output reg finish_rotate,
+	 output reg finish_clearrotate,
+	 output reg finish_flat,
+	 output reg finish_landscape,
+	 output reg finish_landandsky,
+	 output reg finish_gameover,
+	 output reg finish_figure,
+	 output reg finish_erasefigure,
+	 output reg finish_startfigure,
+	 output reg finish_setupwelcome,
+	 output reg debuger,
+	 output reg [6:0]finallength
+	);
+	
+	
+	
+	reg [7:0] x;
+	reg [6:0] y;
+	reg [7:0] x5;
+	reg [6:0] y5;
+	reg [23:0] color;
+	reg [7:0] clearx;
+	reg [6:0] cleary;
+	reg [4:0] plotx;
+	reg [4:0] ploty;
+	reg [4:0] plot2x;
+	reg [4:0] plot2y;
+	reg [7:0] plot3x;
+	reg [6:0] plot3y;
+	reg [7:0] plot4x;
+	reg [6:0] plot4y;	
+	reg [7:0] plot5x;
+	reg [6:0] plot5y;
+	reg [7:0] plot6x;
+	reg [6:0] plot6y;	
+	reg [6:0]addlength;
+	reg [6:0]addlength2;
+	reg finishfirst;
+	//reg [6:0]addlength_for_clearplot;
+	
+	always@(posedge clk)
+	begin
+		if(!resetn)
+		begin
+		debuger<=0;
+		x<= 8'b0;
+		y<= 7'b0;
+		x5<=8'b0;
+		y5<=8'b0;
+		color<= 24'b0;
+		done<=1;
+		finish<=0;
+		finish_draw<=0;
+		finish_clearplot<=0;
+		finish_rotate<=0;
+		finish_clearrotate<=0;
+		finish_flat<=0;
+		finish_landscape<=0;
+		finish_landandsky<=0;
+		finish_figure<=0;
+		finish_erasefigure<=0;
+		finish_startfigure<=0;
+		finish_setupwelcome<=0;
+		clearx<=0;
+		cleary<=0;
+		plotx<=0;
+		ploty<=0;
+		plot2x<=0;
+		plot2y<=0;
+		plot3x<=0;
+		plot3y<=0;
+		plot4x<=0;
+		plot4y<=0;
+		plot5x<=0;
+		plot5y<=0;
+		plot6x<=0;
+		plot6y<=0;
+		xloc<=0;
+		yloc<=0;
+		addlength<=0;
+		addlength2<=0;
+		finallength<=0;
+		address_block1_1<=0;
+		address_block1_2<=0;
+		address_block3_1<=0;
+		address_block4_1<=0;
+		address_block5_1<=0;
+		address_GAMEOVER1_1<=0;
+		address_steve_1<=0;
+		address_welcome_1<=0;
+		finishfirst<=0;
+		finish_gameover<=0;
+		end
+		else if (go_setupwelcome)begin
+				done<=0;
+				x<=8'b0;
+				y<=7'b0; 
+				
+				if(plot6x==8'b10011111)begin
+					plot6x<=5'b0;
+					if((plot6y==7'b1111000))begin
+					plot6y<=2'b0;
+					//finishfirst<=1;
+					//address_block1_1<=0;
+					finish_setupwelcome<= 1;	
+					end
+					else begin
+					plot6y<=plot6y+1'b1;
+					end
+				end
+				else begin
+				plot6x<=plot6x+1'b1;
+				end
+	
+				colorout<=color_welcome_1;
+				xloc<=x+plot6x;
+				yloc<=y+plot6y;	
+				address_welcome_1<=address_welcome_1+1'b1;
+		
+		end
+		else if (go_gameover)begin
+				done<=0;
+				x<=8'b0;
+				y<=7'b0; 
+				
+				if(plot3x==8'b10011111)begin
+					plot3x<=5'b0;
+					if((plot3y==7'b1111000))begin
+					plot3y<=2'b0;
+					//finishfirst<=1;
+					//address_block1_1<=0;
+					finish_gameover<= 1;	
+					end
+					else begin
+					plot3y<=plot3y+1'b1;
+					end
+				end
+				else begin
+				plot3x<=plot3x+1'b1;
+				end
+	
+				colorout<=color_GAMEOVER1_1;
+				xloc<=x+plot3x;
+				yloc<=y+plot3y;	
+				address_GAMEOVER1_1<=address_GAMEOVER1_1+1'b1;
+		
+		end
+		else if(go_plotfigure)begin
+			done<=0;
+			x<=xloc_figure;
+			y<=7'b1001110;
+			
+			if(plot4x==5'b10011)begin
+				plot4x<=5'b0;
+					if(plot4y==5'b10011)begin    //10100
+						plot4y<=5'b0;
+						finish_figure<=1;
+					end
+					else begin
+					plot4y<=plot4y+1'b1;
+					end
+				end
+				else begin
+				plot4x<=plot4x+1'b1;
+				end 
+			colorout<=color_steve_1;
+			xloc<=x+plot4x;
+			yloc<=y+plot4y;
+			address_steve_1<=address_steve_1+1'b1;
+		end
+		else if(go_plotstartfigure)begin
+			done<=0;
+			x5<=0;
+			y5<=7'b1001110;
+			
+			if(plot5x==5'b10011)begin
+				plot5x<=5'b0;
+					if(plot5y==5'b10011)begin    //10100
+						plot5y<=5'b0;
+						finish_startfigure<=1;
+					end
+					else begin
+					plot5y<=plot5y+1'b1;
+					end
+				end
+				else begin
+				plot5x<=plot5x+1'b1;
+				end 
+			colorout<=color_steve_1;
+			xloc<=x5+plot5x;
+			yloc<=y5+plot5y;
+			address_steve_1<=address_steve_1+1'b1;
+		end
+				
+		else if(go_clearfigure)begin
+				colorout<=24'b100110011101100111101010;//3'b0;//
+				clearx<=clearx+1;
+				done<=0;
+				if(clearx==8'b10100001)
+					begin
+					clearx<=0;
+					cleary<=cleary+1;end
+				if(cleary==7'b1100011)
+					begin
+					cleary<=0;
+					clearx<=0;
+					done<=1;
+					finish_erasefigure<=1;end
+				xloc<=clearx;
+				yloc<=cleary;
+		end
+		
+		else if (go_resetsteve)begin
+			finish_figure<=0;
+			finish_erasefigure<=0;
+			address_steve_1<=0;
+			plot4x<=0;
+			plot4y<=0;
+			done<=1;
+			
+		end
+		
+		
+		else if (go_plotlandscape)begin
+				done<=0;
+			if(finishfirst==0)begin
+				x<=8'b0;
+				y<=7'b1100100; 
+				
+				if(plotx==5'b10011)begin
+					plotx<=5'b0;
+					if((ploty==5'b10100))begin
+					ploty<=2'b0;
+					finishfirst<=1;
+					//address_block1_1<=0;
+					//finish_landscape<= 1;	
+					end
+					else begin
+					ploty<=ploty+1'b1;
+					end
+				end
+				else begin
+				plotx<=plotx+1'b1;
+				end
+				colorout<=color_block1_1;
+				xloc<=x+plotx;
+				yloc<=y+ploty;	
+				address_block1_1<=address_block1_1+1'b1;
+			end else begin	
+				x<=length_required;
+				y<=7'b1100100; 
+				//done<=0;
+				if(plot2x==5'b10011)begin
+					plot2x<=5'b0;
+					if((plot2y==5'b10100))begin
+					plot2y<=2'b0;
+					finish_landscape<= 1;	
+					end
+					else begin
+					plot2y<=plot2y+1'b1;
+					end
+				end
+				else begin
+				plot2x<=plot2x+1'b1;
+				end
+				
+				if(width_of_next==20)begin 
+				address_block1_2<=address_block1_2+1'b1;
+				colorout<=color_block1_2;end 
+				else if(width_of_next==15)begin
+				address_block4_1<=address_block4_1+1'b1;
+				colorout<=color_block4_1;end 
+				else if(width_of_next==10)begin
+				address_block3_1<=address_block3_1+1'b1;
+				colorout<=color_block3_1;end 
+				else if(width_of_next==5)begin
+				address_block5_1<=address_block5_1+1'b1;
+				colorout<=color_block5_1;end 
+				
+				
+				xloc<=x+plot2x;
+				yloc<=y+plot2y;	
+				
+			end
+		end
+
+			
+		else if(go_clear)begin
+				colorout<=24'b100110011101100111101010;//24'b0;
+				clearx<=clearx+1;
+				done<=0;
+				
+				if(clearx==8'b10100001)
+					begin
+					clearx<=0;
+					cleary<=cleary+1;end
+				if(cleary==7'b1100100)//7'b1111000)
+					begin
+					cleary<=0;
+					clearx<=0;
+					done<=1;
+					finish<=1;end
+				xloc<=clearx;
+				yloc<=cleary;
+			end
+			
+			
+		else if(go_clearlandandsky)begin                 //need to implement !!!!!
+				colorout<=24'b100110011101100111101010;//24'b0;
+				clearx<=clearx+1;
+				done<=0;
+				
+				if(clearx==8'b10100001)
+					begin
+					clearx<=0;
+					cleary<=cleary+1;end
+				if(cleary==7'b1111000)
+					begin
+					cleary<=0;
+					clearx<=0;
+					done<=1;
+					finish_landandsky<=1;end
+				xloc<=clearx;
+				yloc<=cleary;
+			end		
+			
+
+		else if (go_reset_handshakes)begin    //THIS STATEMENT NEED TO BE CHANGED TO !=&&!=
+		debuger<=0;
+		x<= 8'b0;
+		y<= 7'b0;
+		color<= 24'b0;
+		done<=1;
+		finish<=0;
+		finish_draw<=0;
+		finish_clearplot<=0;
+		finish_rotate<=0;
+		finish_clearrotate<=0;
+		finish_flat<=0;
+		finish_landscape<=0;
+		finish_landandsky<=0;
+		finish_figure<=0;
+		finish_erasefigure<=0;
+		finish_startfigure<=0;
+		finish_setupwelcome<=0;
+		clearx<=0;
+		cleary<=0;
+		plotx<=0;
+		ploty<=0;
+		plot2x<=0;
+		plot2y<=0;
+		plot3x<=0;
+		plot3y<=0;
+		plot4x<=0;
+		plot4y<=0;
+		plot5x<=0;
+		plot5y<=0;
+		xloc<=0;
+		yloc<=0;
+		addlength<=0;
+		addlength2<=0;
+		finallength<=0;
+		address_block1_1<=0;
+		address_block1_2<=0;
+		address_block3_1<=0;
+		address_block4_1<=0;
+		address_block5_1<=0;
+		address_GAMEOVER1_1<=0;
+		address_steve_1<=0;
+		address_welcome_1<=0;
+		finishfirst<=0;
+		finish_gameover<=0;
+		end
+		else if(go_plot)begin
+				colorout<=24'b111111111111111111111111;//3'b111;//
+				xloc<=8'b00010100;
+				y<=7'b1100011;
+				done<=0;
+				if(length<100)begin
+					yloc<=y-length;
+					end
+				finish_draw<=1;
+				addlength<=0;
+				addlength2<=0;
+				finallength<=length;
+				if(length>100)begin
+					finallength<=100;
+					end
+				end
+		else if(go_clearplot)begin
+				colorout<=24'b100110011101100111101010;//3'b0;//
+				clearx<=clearx+1;
+				done<=0;
+				if(clearx==8'b10100001)
+					begin
+					clearx<=8'b00010100;   //0
+					cleary<=cleary+1;end
+				if(cleary==7'b1100100)
+					begin
+					cleary<=0;
+					clearx<=8'b00010100; //0
+					done<=1;
+					finish_clearplot<=1;end
+				xloc<=clearx;
+				yloc<=cleary;
+			end
+		else if(go_rotate)begin
+				colorout<=24'b111111111111111111111111;//3'b111;//
+				x<=8'b00010100;
+				y<=7'b1100011; //end
+				done<=0;
+				if(addlength<(finallength/10*9))begin
+				xloc<=x+addlength;
+				yloc<=y-addlength;end
+				
+				if(addlength==finallength)begin
+				finish_rotate<=1;end
+				
+				addlength<=addlength+1;
+
+				end
+		else if(go_clearrotate)begin
+				colorout<=24'b100110011101100111101010;//3'b0;//
+				clearx<=clearx+1;
+				done<=0;
+				if(clearx==8'b10100001)
+					begin
+					clearx<=8'b00010100; //0
+					cleary<=cleary+1;end
+				if(cleary==7'b1100100)
+					begin
+					cleary<=0;
+					clearx<=8'b00010100;//0
+					done<=1;
+					finish_clearrotate<=1;end
+				xloc<=clearx;
+				yloc<=cleary;
+			end
+		else if(go_flat)begin
+				colorout<=24'b111111111111111111111111;//3'b111;//
+				x<=8'b00010100;
+				yloc<=7'b1100011; 
+				done<=0;
+	
+				if(addlength2<(finallength+1))begin
+				xloc<=x+addlength2;
+				end
+				
+				if(addlength2==finallength)begin
+				finish_flat<=1;end
+				
+				addlength2<=addlength2+1;
+				end
+
+		else if (go_standby)begin
+				finish<=0;
+				done<=1;
+				//xloc<=0;
+				//yloc<=0;
+				end
+				
+
+		
+				
+		end		
+		
+	reg [8:0]address_block1_1;
+	wire [23:0]color_block1_1;
+ block2 block2_1 (
+	.address(address_block1_1),
+	.clock(clk),
+	.data(0),
+	.wren(0),
+	.q(color_block1_1));
+	
+	reg [8:0]address_block1_2;
+	wire [23:0]color_block1_2;
+ block2 block2_2 (
+	.address(address_block1_2),
+	.clock(clk),
+	.data(0),
+	.wren(0),
+	.q(color_block1_2));
+	
+	reg [8:0]address_block3_1;
+	wire [23:0]color_block3_1;
+ block3 block3_1 (
+	.address(address_block3_1),
+	.clock(clk),
+	.data(0),
+	.wren(0),
+	.q(color_block3_1));
+	
+	
+	reg [8:0]address_block4_1;
+	wire [23:0]color_block4_1;
+ block4_15 block4_1 (
+	.address(address_block4_1),
+	.clock(clk),
+	.data(0),
+	.wren(0),
+	.q(color_block4_1));
+	
+	reg [8:0]address_block5_1;
+	wire [23:0]color_block5_1;
+ block5_5 block5_1 (
+	.address(address_block5_1),
+	.clock(clk),
+	.data(0),
+	.wren(0),
+	.q(color_block5_1));
+	
+	
+	reg [14:0]address_GAMEOVER1_1;
+	wire [23:0]color_GAMEOVER1_1;
+ GAMEOVER1 GAMEOVER1_1 (
+	.address(address_GAMEOVER1_1),
+	.clock(clk),
+	.data(0),
+	.wren(0),
+	.q(color_GAMEOVER1_1));
+	
+	reg [8:0]address_steve_1;
+	wire [23:0]color_steve_1;
+ steve steve_1 (
+	.address(address_steve_1),
+	.clock(clk),
+	.data(0),
+	.wren(0),
+	.q(color_steve_1));
+	
+	reg [14:0]address_welcome_1;
+	wire [23:0]color_welcome_1;
+ welcome welcome_1 (
+	.address(address_welcome_1),
+	.clock(clk),
+	.data(0),
+	.wren(0),
+	.q(color_welcome_1));
+	
+
+	
+	
+	endmodule
+	
+	
+	module stick_cycle(
+    input clk,
+    input resetn, //k0
+	input clear, //k1
+	input pressed, //k3
+	input key2,
+	input [7:0]received_data,
+	input received_data_en,
+
+	 //input done,
+	 input finish,
+	 input finish_draw,
+	 input finish_clearplot,
+	 input finish_rotate,
+	 input finish_clearrotate,
+	 input finish_flat,
+	input [6:0]length_required,
+	input [6:0]finallength,
+	input [6:0]width_of_next, 
+	input go_stick,					//new
+	
+	output reg go_plot,               //enable
+	output reg go_clear,			//need to finssh
+	output reg go_start,
+	output reg go_rotate,
+	output reg go_flat,
+	output reg go_standby,
+	output reg go_clearplot,	
+	output reg go_clearrotate,
+	output reg [6:0] length,
+	output reg [1:0]enoughlen,
+	
+	output reg stick_formed            //new
+    );
+
+	wire go_increase;
+	wire [25:0]q;
+	reg counting;
+	wire [26:0]d;
+ BitCounter buildstick(clk,resetn,pressed,q);
+assign go_increase = (q == 25'b0)?1:0;
+
+//start count once the key is pressed used to make animation delay
+always@(*)begin
+	if(!resetn)
+		counting<=0;
+	else if(pressed)
+		counting<=1;
+	end
+
+
+always@(*)begin   //could use posedge of go_clearplot
+	if(!resetn)
+		enoughlen<=2'b00;
+	else if (finish_draw==1&&(finallength<(length_required+width_of_next-5'b10100))&&(finallength>length_required-5'b10100))
+		enoughlen<=2'b11;
+	else if(finish_draw==1&&(finallength>(length_required+width_of_next-5'b10100)))
+		enoughlen<=2'b01;
+	else if(finish_draw==1&&(finallength<length_required-5'b10100))
+		enoughlen<=2'b10;
+
+	end
+
+
+	wire ani_delay;
+ BitCounter1 animation_delay(clk,resetn,counting,d);
+//1s
+ assign ani_delay = (d == 27'b0)?1:0;
+
+
+
+	always@(posedge clk)
+	begin
+	if(!resetn)
+		length<=7'b0;
+	else if(go_increase)
+		length <= length +1'b1;
+		
+	end
+	
+
+	
+	
+	 
+	 reg [10:0] current_state, next_state; 
+	 localparam start =0,
+					waitforkey =1,
+					draw=2,
+					waitdraw=3,
+					clearplot=4,
+					rotate=5,
+					clearrotate=6,
+					flat=7,
+					stop=8,
+					clearall=9,
+					standby=10;
+	 
+	 always@(*)
+	 begin :state_table
+	 case(current_state)
+		start:next_state=go_stick?waitforkey:start;
+		waitforkey:next_state=pressed?draw:waitforkey;
+		draw:next_state=finish_draw?waitdraw:draw;
+		waitdraw:next_state=pressed?draw:clearplot;
+		clearplot:next_state=finish_clearplot?rotate:clearplot;
+		rotate:next_state=(finish_rotate && ani_delay)?clearrotate:rotate;
+		clearrotate:next_state=(finish_clearrotate)?flat:clearrotate;
+		flat:next_state=(finish_flat&&ani_delay)?stop:flat;
+		stop:next_state=start;
+		clearall:next_state=finish?start:clearall;
+		
+		endcase
+		end
+		
+		
+		always@(*)
+		begin: enable_signals
+		go_start=0;
+		go_plot=0;
+		go_clear=0;
+		go_rotate=0;
+		go_flat=0;
+		go_standby=0;
+		go_clearplot=0;
+		go_clearrotate=0;
+		stick_formed=0;
+		case(current_state)
+		start:go_start=1;
+		draw:go_plot=1;
+		rotate:go_rotate=1;
+		flat:go_flat=1;
+		clearall:go_clear=1;
+		standby:go_standby=1;
+		clearplot:go_clearplot=1;
+		clearrotate:go_clearrotate=1;
+		stop:stick_formed=1;
+		endcase
+		end
+		
+		always@(posedge clk)
+		begin:state_FFS
+			if(!resetn)
+				current_state<=start;
+			else if (clear)
+				current_state<=clearall;
+			else
+				current_state<=next_state;
+				
+		end
+		
+		
+	 endmodule 
+
+	 
+
+module game_cycle( 
+	input clk,
+    input resetn,
+	input key2,
+	input game_start,
+	input landscape_formed,
+	input stick_formed,
+	input figure_formed,
+	input [1:0]enoughlen,
+	input finish_landandsky,
+	input finish_gameover,
+	input finish_startfigure,
+	input finish_setupwelcome,
+	input restart,
+	output reg go_landscape,
+	output reg go_resetstick,
+	output reg go_stick,
+	output reg go_compare,
+	output reg go_gameover,
+	output reg go_clearlandandsky,
+	output reg go_reset_handshakes,
+	output reg go_figure_cycle,
+	output reg go_resetmovefigure,
+	output reg go_plotstartfigure,
+	output reg go_setupwelcome,
+	output reg [6:0]length_required,
+	output reg [6:0]width_of_next,
+	output reg [6:0]score
+	);
+
+		
+		
+		 
+ reg [14:0] current_state, next_state; 
+	 localparam setupwelcome=0,
+					generateland =1,
+					clearallspace=2,
+					landscape =3,
+					stick=4,
+					resetstick=5,
+					compare=6,
+					gameover=7,
+					gamecontinue=8,
+					ifrestart=9,
+					movefigure=10,
+					resetmovefigure=11,
+					figure=12,
+					welcome=13,
+					start =14
+					;
+	 always@(*)
+	 begin :state_table
+	 case(current_state)
+		setupwelcome:next_state=finish_setupwelcome?welcome:setupwelcome;
+		welcome:next_state=key2?start:welcome;
+		start:next_state=generateland;  //gamecontinue
+		gamecontinue:next_state=generateland;
+		generateland:next_state=clearallspace;
+		clearallspace:next_state=finish_landandsky?landscape:clearallspace;
+		landscape:next_state=landscape_formed?figure:landscape;
+		figure:next_state=finish_startfigure?resetstick:figure;
+		resetstick:next_state=stick;
+		stick:next_state=stick_formed?resetmovefigure:stick;
+		resetmovefigure:next_state=movefigure;
+		movefigure:next_state=figure_formed?compare:movefigure;
+		compare:begin
+				if(enoughlen==2'b11)
+				next_state=gamecontinue;
+				else if(enoughlen==2'b10||enoughlen==2'b01)
+				next_state=gameover;
+				else if(enoughlen==2'b00)
+				next_state=compare;
+				end
+		gameover:next_state=finish_gameover?ifrestart:gameover;
+		ifrestart:next_state=restart?setupwelcome:ifrestart;
+		
+		endcase
+		end
+		
+		
+		reg go_ge;
+		
+
+			
+		wire [6:0]randomlandlenth;
+		BitCounterland l1(clk,resetn,randomlandlenth);
+		wire [2:0]randomlandblock;
+		BitCounterblock block(clk,resetn,randomlandblock);
+		
+		always@(*)begin
+		if(!resetn)begin
+			length_required<=30;
+			width_of_next<=20;end 
+		
+		else if(go_ge==1)begin
+			length_required<=randomlandlenth;
+			
+				if (randomlandblock==3'b111)
+				width_of_next<=5;
+				else if (randomlandblock==3'b110)
+				width_of_next<=10;
+				else if (randomlandblock==3'b101)
+				width_of_next<=10;
+				else if (randomlandblock==3'b100)
+				width_of_next<=15;
+				else if (randomlandblock==3'b011)
+				width_of_next<=15;
+				else
+				width_of_next<=20;	
+		
+		end
+		
+		end
+		
+		reg go_count;
+
+		always@(posedge clk)begin
+			if(!resetn)begin
+			score =0;
+			end
+			if(go_count)begin
+			score<=score+1'b1;end
+		end
+		
+		always@(*)
+		begin: enable_signals
+		go_setupwelcome=0;
+		go_landscape=0;
+		go_stick=0;
+		go_compare=0;
+		go_gameover=0;
+		go_resetstick=0;
+		go_ge=0;
+		go_clearlandandsky=0;
+		go_reset_handshakes=0;
+		go_figure_cycle=0;
+		go_resetmovefigure=0;
+		go_plotstartfigure=0;
+		go_count=0;
+		case(current_state)
+		setupwelcome:go_setupwelcome=1;
+		gamecontinue:begin 
+					go_reset_handshakes=1;
+					go_count=1;
+					end
+		generateland:go_ge=1;
+		clearallspace:go_clearlandandsky=1;
+		landscape:go_landscape=1;
+		figure:go_plotstartfigure=1;
+		stick:go_stick=1;
+		resetstick:go_resetstick=1;
+		resetmovefigure:go_resetmovefigure=1;
+		movefigure:go_figure_cycle=1;
+		compare:go_compare=1;
+		gameover:go_gameover=1;		
+		endcase
+		end
+		
+		always@(posedge clk)
+		begin:state_FFS
+			if(!resetn)
+				current_state<=setupwelcome;
+			else
+				current_state<=next_state;
+				
+		end
+		
+endmodule
+
+
+module landscape_cycle( 
+	input clk,
+    input resetn,
+	input go_landscape,
+	input finish_landscape,
+	output reg go_plotlandscape,
+	output reg landscape_formed
+	);
+	
+	
+		 
+	reg [2:0] current_state, next_state; 
+	localparam start =0,
+				plotlandscape =1,
+				formlandscape=2;
+	 
+	 always@(*)
+	 begin :state_table
+	 case(current_state)
+		start:next_state=go_landscape?plotlandscape:start;
+		plotlandscape:next_state=finish_landscape?formlandscape:plotlandscape;
+		formlandscape:next_state=start;
+		
+		endcase
+		end
+		
+		
+		
+		always@(*)
+		begin: enable_signals
+		go_plotlandscape=0;
+		landscape_formed=0;
+
+		case(current_state)
+		plotlandscape:go_plotlandscape=1;
+		formlandscape:landscape_formed=1;
+		endcase
+		end
+		
+		always@(posedge clk)
+		begin:state_FFS
+			if(!resetn)
+				current_state<=start;
+			else
+				current_state<=next_state;
+				
+		end
+		
+
+		
+		
+endmodule
+
+	 
+
+	 
+module BitCounter(clock,clear_b,enable,q);
+input clock,clear_b,enable;
+output reg [24:0] q; // declare q
+always @(posedge clock) // triggered every time clock rises
+		begin
+		if (clear_b == 1'b0) // when Clear b is 0
+			q <= 25'b1011111010111100000111; // q is set to 4hz
+		else if (q == 25'b0) // when q is the maximum value for the counter
+			q <= 25'b1011111010111100000111;  // q reset to 0
+		else if (enable == 1'b1) 
+			q <= q - 1;
+end
+endmodule 
+
+module BitCounter1(clock,clear_b,enable,q);
+input clock,clear_b,enable;
+output reg [26:0] q; // declare q
+always @(posedge clock) // triggered every time clock rises
+		begin
+		if (clear_b == 1'b0) // when Clear b is 0
+			q <= 27'b10111110101111000001111111; // q is set to 4hz
+		else if (q == 25'b0) // when q is the maximum value for the counter
+			q <= 27'b10111110101111000001111111;  // q reset to 0
+		else if (enable == 1'b1) 
+			q <= q - 1;
+end
+endmodule 
+
+module BitCounterland(clock,clear_b,q);
+input clock,clear_b;
+output reg [6:0] q; // declare q
+always @(posedge clock) // triggered every time clock rises
+		begin
+		if (clear_b == 1'b0) // when Clear b is 0
+			q <= 7'b1011010; // q is set to 90
+		else if (q == 7'b11110) // when q is the maximum value for the counter
+			q <= 7'b1011010;  // q reset to 0
+		else
+			q <= q - 1;
+end
+endmodule 
+
+module BitCounterblock(clock,clear_b,q);
+input clock,clear_b;
+output reg [2:0] q; // declare q
+always @(posedge clock) // triggered every time clock rises
+		begin
+		if (clear_b == 1'b0) // when Clear b is 0
+			q <= 3'b111; // q is set to 90
+		else if (q == 2'b0) // when q is the maximum value for the counter
+			q <= 3'b111;  // q reset to 0
+		else
+			q <= q - 1;
+end
+endmodule 
+
+/////////////////////////////good
+
+module figure_cycle(
+    input clk,
+    input resetn, //k0
+	 input finish_figure,
+	 input finish_erasefigure,
+	 input length_required,
+	 input [6:0]finallength,
+	 input go_figure_cycle,
+	 input debugerrr,
+	output reg go_plotfigure,               
+	output reg go_clearfigure,
+	output reg go_resetsteve,	
+	output reg [7:0]xloc_figure,
+	output reg[6:0]yloc_figure,
+	output reg figure_formed,
+	output hz
+    );
+	 reg framesdone;
+	 wire [26:0]q;
+	 //wire hz;
+	 BitCounter_for_figure bA1(clk,resetn,1,q);
+	 assign hz = (q == 27'b0)?1:0;
+	 reg [4:0]framecounter;
+	 reg [6:0]currentx;
+	 reg [6:0]currenty;
+	 reg endpoint;
+
+	
+	always@(posedge clk)begin
+	if(!resetn)begin
+			currentx<=0;
+			endpoint<=0;
+			xloc_figure<=0;
+			yloc_figure<=7'b1001110;end //78
+		else if((hz==1)&&(currentx<(finallength+10))) begin
+			currentx<=currentx+1'b1;
+			xloc_figure<=currentx;
+			yloc_figure<=7'b1001110;
+		end
+			else begin
+			currentx<=currentx;
+			xloc_figure<=currentx;
+			//endpoint<=1;
+			end
+	
+	end
+
+
+	 
+	 reg [5:0] current_state, next_state; 
+	 localparam start =0,
+					draw =1,
+					erase=2,
+					waitstart=3,
+					formfigure=4;
+	 
+	 always@(*)
+	 begin :state_table
+	 case(current_state)
+		waitstart:next_state=go_figure_cycle?start:waitstart;
+		start:next_state=draw;
+		draw:begin
+			if (finish_figure&&(currentx>finallength+8))
+			next_state=formfigure;
+			else if(finish_figure)
+			next_state=erase;
+			else
+			next_state=draw;
+		end
+		erase:next_state=finish_erasefigure?start:erase;
+		formfigure:next_state=waitstart;
+		endcase
+		end
+		
+		
+		always@(*)
+		begin: enable_signals
+		go_plotfigure=0;
+		go_clearfigure=0;
+		figure_formed=0;
+		go_resetsteve=0;
+		case(current_state)
+		start:go_resetsteve=1;
+		draw:go_plotfigure=1;
+		erase:go_clearfigure=1;
+		formfigure:figure_formed=1;
+		endcase
+		end
+		
+		always@(posedge clk)
+		begin:state_FFS
+			if(!resetn)
+				current_state<=waitstart;
+				else
+				current_state<=next_state;
+				
+		end
+		
+		
+	 endmodule 
+	 
+	 
+	 
+module BitCounter_for_figure (clock,resetn,enable,q);
+input clock,resetn,enable;
+output reg [26:0] q; // declare q
+
+always @(posedge clock ) // triggered every time clock rises
+		begin
+		if (resetn == 1'b0) // Check if parallel load is 1
+			q <=  27'b101111101011110000011;//24999999;
+		else if (q == 20'b0) // when q is the maximum value for the counter
+			q <=  27'b101111101011110000011;
+		else if (enable)// increment q only when Enable is 1
+			q <= q - 1; // increment q
+end
+endmodule 
+
+
+module hex(input C3,C2,C1,C0, output HEX0,HEX1,HEX2,HEX3,HEX4,HEX5,HEX6);
+  assign HEX0 = (~C3&~C2&~C1&C0)|(~C3&C2&~C1&~C0)|(C3&~C2&C1&C0)|(C3&C2&~C1&C0);
+  assign HEX1 = (~C3&C2&~C1&C0)|(~C3&C2&C1&~C0)|(C3&~C2&C1&C0)|(C3&C2&~C1&~C0)|(C3&C2&C1&~C0)|(C3&C2&C1&C0);
+  assign HEX2 = (~C3&~C2&C1&~C0)|(C3&C2&~C1&~C0)|(C3&C2&C1&~C0)|(C3&C2&C1&C0);
+  assign HEX3 = (~C3&~C2&~C1&C0)|(~C3&C2&~C1&~C0)|(~C3&C2&C1&C0)|(C3&~C2&C1&~C0)|(C3&C2&C1&C0);
+  assign HEX4 = (~C3&~C2&~C1&C0)|(~C3&~C2&C1&C0)|(~C3&C2&~C1&~C0)|(~C3&C2&~C1&C0)|(~C3&C2&C1&C0)|(C3&~C2&~C1&C0);
+  assign HEX5 = (~C3&~C2&~C1&C0)|(~C3&~C2&C1&~C0)|(~C3&~C2&C1&C0)|(~C3&C2&C1&C0)|(C3&C2&~C1&C0);
+  assign HEX6 = (~C3&~C2&~C1&~C0)|(~C3&~C2&~C1&C0)|(~C3&C2&C1&C0)|(C3&C2&~C1&~C0);
+ endmodule
+
+	 
+
+

@@ -1,0 +1,535 @@
+// Part 2 skeleton
+
+module finalproject
+	(
+		CLOCK_50,						//	On Board 50 MHz
+		// Your inputs and outputs here
+		KEY,	
+		SW,	
+		LEDR,// On Board Keys
+		// The ports below are for the VGA output.  Do not change.
+		VGA_CLK,   						//	VGA Clock
+		VGA_HS,							//	VGA H_SYNC
+		VGA_VS,							//	VGA V_SYNC
+		VGA_BLANK_N,						//	VGA BLANK
+		VGA_SYNC_N,						//	VGA SYNC
+		VGA_R,   						//	VGA Red[9:0]
+		VGA_G,	 						//	VGA Green[9:0]
+		VGA_B   						//	VGA Blue[9:0]
+	);
+
+	input			CLOCK_50;				//	50 MHz
+	input	[3:0]	KEY;	
+	input [9:0] SW;
+	output [9:0]	LEDR;
+	// Declare your inputs and outputs here
+	// Do not change the following outputs
+	output			VGA_CLK;   				//	VGA Clock
+	output			VGA_HS;					//	VGA H_SYNC
+	output			VGA_VS;					//	VGA V_SYNC
+	output			VGA_BLANK_N;				//	VGA BLANK
+	output			VGA_SYNC_N;				//	VGA SYNC
+	output	[7:0]	VGA_R;   				//	VGA Red[7:0] Changed from 10 to 8-bit DAC
+	output	[7:0]	VGA_G;	 				//	VGA Green[7:0]
+	output	[7:0]	VGA_B;   				//	VGA Blue[7:0]
+	
+	wire resetn;
+	assign resetn = KEY[0];
+	
+	// Create the colour, x, y and writeEn wires that are inputs to the controller.
+
+	wire [2:0] colour;
+	wire [7:0] x;
+	wire [6:0] y;
+	wire writeEn;
+	wire ld_x,ld_y;
+	wire go_clear;
+	wire go_plot;
+	wire go_start;
+	wire go_rotate;
+	wire go_clearplot;
+	wire go_clearrotate;
+	wire go_flat;
+	wire done;
+	wire finish;
+	wire finish_clearplot;
+	wire finish_clearrotate;
+	wire finish_rotate;
+	wire finish_flat;
+	wire finish_draw;
+	wire [6:0] length;
+	wire [1:0]enoughlen;
+	wire go_standby;
+	wire [6:0]length_required;
+	
+	assign writeEn = ~done;
+	//assign writeEn = ~KEY[3];
+	assign LEDR[0]=1;
+	assign LEDR[1] = done;
+	assign LEDR[2] = KEY[3];
+	assign LEDR[3]= ld_y;
+	assign LEDR[4]=go_plot;
+	assign LEDR[5]=go_clear;
+	assign LEDR[6]=writeEn;
+	// Create an Instance of a VGA controller - there can be only one!
+	// Define the number of colours as well as the initial background
+	// image file (.MIF) for the controller.
+	vga_adapter VGA(
+			.resetn(resetn),
+			.clock(CLOCK_50),
+			.colour(colour),
+			.x(x),
+			.y(y),
+			.plot(writeEn),
+			/* Signals for the DAC to drive the monitor. */
+			.VGA_R(VGA_R),
+			.VGA_G(VGA_G),
+			.VGA_B(VGA_B),
+			.VGA_HS(VGA_HS),
+			.VGA_VS(VGA_VS),
+			.VGA_BLANK(VGA_BLANK_N),
+			.VGA_SYNC(VGA_SYNC_N),
+			.VGA_CLK(VGA_CLK));
+		defparam VGA.RESOLUTION = "160x120";
+		defparam VGA.MONOCHROME = "FALSE";
+		defparam VGA.BITS_PER_COLOUR_CHANNEL = 1;
+		defparam VGA.BACKGROUND_IMAGE = "black.mif";
+		
+		datapath pth(CLOCK_50,KEY[0],go_plot,go_clear,go_start,go_rotate,go_flat,go_standby,go_clearplot,go_clearrotate,length,
+		x,y,colour,done,finish,finish_draw,finish_clearplot,finish_rotate,finish_clearrotate,finish_flat);
+		
+		control con(CLOCK_50,KEY[0],~KEY[1],~KEY[3],~KEY[2],finish,finish_draw,finish_clearplot,finish_rotate,finish_clearrotate,finish_flat,length_required,width_of_next,
+		go_plot,go_clear,go_start,go_rotate,go_flat,go_standby,go_clearplot,go_clearrotate,length,enoughlen);
+		
+endmodule			
+
+
+		//153 217 234      10011001 11011001 11101010
+	// Put your code here. Your code should produce signals x,y,colour and writeEn
+	// for the VGA controller, in addition to any other functionality your design may require.
+	module datapath(
+	input clk,
+	input resetn,
+	input go_plot,              //enable
+	input go_clear,//clear screen
+	input go_start,
+    input go_rotate,
+	input go_flat,
+	input go_standby,
+		input go_clearplot,	
+		input go_clearrotate,
+	input [6:0]length,
+	output reg [7:0]xloc,
+	output reg[6:0]yloc,
+	output reg[2:0]colorout,
+	output reg done,
+	output reg finish,
+	output reg finish_draw,
+	 output reg finish_clearplot,
+	 output reg finish_rotate,
+	 output reg finish_clearrotate,
+	 output reg finish_flat
+	);
+	
+	
+	
+	reg [7:0] x;
+	reg [6:0] y;
+	reg [2:0] color;
+	reg [7:0] clearx;
+	reg [6:0] cleary;
+	reg [1:0] plotx;
+	reg [1:0] ploty;
+	reg [6:0]addlength;
+	reg [6:0]addlength2;
+	//reg [6:0]addlength_for_clearplot;
+	reg [6:0]finallength;
+	always@(posedge clk)
+	begin
+		if(!resetn)
+		begin
+		x<= 8'b0;
+		y<= 7'b0;
+		color<= 3'b0;
+		done<=1;
+		finish<=0;
+		finish_draw<=0;
+		finish_clearplot<=0;
+		finish_rotate<=0;
+		finish_clearrotate<=0;
+		finish_flat<=0;
+		clearx<=0;
+		cleary<=0;
+		plotx<=0;
+		ploty<=0;
+		xloc<=0;
+		yloc<=0;
+		addlength<=0;
+		addlength2<=0;
+		finallength<=0;
+		end	
+		else if(go_clear)begin
+				colorout<=3'b0;
+				clearx<=clearx+1;
+				done<=0;
+				
+				if(clearx==8'b10100001)
+					begin
+					clearx<=0;
+					cleary<=cleary+1;end
+				if(cleary==7'b1111000)
+					begin
+					cleary<=0;
+					clearx<=0;
+					done<=1;
+					finish<=1;end
+				xloc<=clearx;
+				yloc<=cleary;
+			end
+		else if (go_start)begin
+			colorout<=3'b0;
+			finish<=0;
+			done<=1;
+		end
+		else if(go_plot)begin
+				colorout<=3'b111;//24'b111111111111111111111111;//
+				xloc<=8'b00010110;
+				y<=7'b1010000; 
+				done<=0;
+				if(length<80)begin
+					yloc<=y-length;
+					end
+				finish_draw<=1;
+				addlength<=0;
+				addlength2<=0;
+				finallength<=length;
+				if(length>80)begin
+					finallength<=80;
+					end
+				end
+		else if(go_clearplot)begin
+				colorout<=3'b0;//24'b100110011101100111101010;//
+				clearx<=clearx+1;
+				done<=0;
+				if(clearx==8'b10100001)
+					begin
+					clearx<=0;
+					cleary<=cleary+1;end
+				if(cleary==7'b1010000)
+					begin
+					cleary<=0;
+					clearx<=0;
+					done<=1;
+					finish_clearplot<=1;end
+				xloc<=clearx;
+				yloc<=cleary;
+			end
+		else if(go_rotate)begin
+				colorout<=3'b111;//24'b111111111111111111111111;//
+				if(finallength<80)
+				x<=8'b00010110;
+				y<=7'b1010000; 
+				done<=0;
+				if(addlength<(finallength/10*9))begin
+				xloc<=x+addlength;
+				yloc<=y-addlength;end
+				
+				if(addlength==finallength)begin
+				finish_rotate<=1;end
+				
+				addlength<=addlength+1;
+
+				end
+		else if(go_clearrotate)begin
+				colorout<=3'b0;//24'b100110011101100111101010;//
+				clearx<=clearx+1;
+				done<=0;
+				if(clearx==8'b10100001)
+					begin
+					clearx<=0;
+					cleary<=cleary+1;end
+				if(cleary==7'b1010000)
+					begin
+					cleary<=0;
+					clearx<=0;
+					done<=1;
+					finish_clearrotate<=1;end
+				xloc<=clearx;
+				yloc<=cleary;
+			end
+		else if(go_flat)begin
+				colorout<=3'b111;//24'b111111111111111111111111;//
+				x<=8'b00010110;
+				yloc<=7'b1010000; 
+				done<=0;
+	
+				if(addlength2<(finallength+1))begin
+				xloc<=x+addlength2;
+				end
+				
+				if(addlength2==finallength)begin
+				finish_flat<=1;end
+				
+				addlength2<=addlength2+1;
+				end
+				
+
+				else if (go_standby)begin
+				finish<=0;
+				done<=1;
+				//xloc<=0;
+				//yloc<=0;
+				end
+				
+			
+		
+
+	
+	end
+
+	
+	
+	endmodule
+	
+	
+	module control(
+    input clk,
+    input resetn, //k0
+	input clear, //k1
+	input pressed, //k3
+	input key2,
+
+	 //input done,
+	 input finish,
+	 input finish_draw,
+	 input finish_clearplot,
+	 input finish_rotate,
+	 input finish_clearrotate,
+	 input finish_flat,
+	input length_required, 
+	input width_of_next, 
+	
+	output reg go_plot,               //enable
+	output reg go_clear,			//need to finssh
+	output reg go_start,
+	output reg go_rotate,
+	output reg go_flat,
+	output reg go_standby,
+	output reg go_clearplot,	
+	output reg go_clearrotate,
+	output reg [6:0] length,
+	output reg [1:0]enoughlen
+    );
+/*	
+	reg framesdone;
+	 wire [19:0]q;
+	 wire sixtyhz;
+	 BitCounter b1(clk,resetn,q);
+	 assign sixtyhz = (q == 20'b0)?1:0;
+	 reg [4:0]framecounter;
+	 reg [7:0]currentx;
+	 reg [6:0]currenty;
+	 reg xdirection;
+	 reg ydirection;
+	 
+	 
+	 
+
+		
+	always@(posedge sixtyhz)begin
+		if(!resetn)begin
+			currentx<=7'b0;
+			currenty<=6'b0;
+			xdirection<=1;
+			ydirection<=1;
+			framecounter<=0;
+			framesdone<=0;
+			xloc<=7'b0;
+			yloc<=6'b0;end
+		else if(framecounter==4'b1011)begin
+			framesdone<=1;		
+			framecounter<=4'b0;end
+		else if(framecounter==4'b0)begin 
+				framecounter<=framecounter+1;
+				framesdone<=0;
+				xloc<=currentx;
+				yloc<=currenty;		
+			if (xdirection==1)
+				currentx<=currentx+1;
+			if(xdirection==0)
+				currentx<=currentx-1;
+			if(ydirection==1)
+				currenty<=currenty+1;
+			if(ydirection==0)
+				currenty<=currenty-1;		
+			end
+		else begin
+		   framecounter<=framecounter+1;end
+	
+			if(currentx==8'b10011100)
+				xdirection<=0;
+			else if(currentx==8'b0)
+				xdirection<=1;
+			if(currenty==7'b1110100)
+				ydirection<=0;
+			else if(currenty==7'b0)
+				ydirection<=1;
+	end
+	*/
+	wire go_increase;
+	wire [25:0]q;
+	reg counting;
+	wire [26:0]d;
+ BitCounter buildstick(clk,resetn,pressed,q);
+assign go_increase = (q == 25'b0)?1:0;
+
+//start count once the key is pressed used to make animation delay
+always@(*)begin
+	if(!resetn)
+		counting<=0;
+	else if(pressed)
+		counting<=1;
+	end
+
+/*	
+always@(*)begin   //could use posedge of go_clearplot
+	if(!resetn)
+		enoughlen<=2'b00;
+	else if(finish_draw&&(length>(length_required+width_of_next)))
+		enoughlen<=2'b01;
+	else if(finish_draw&&(length<length_required))
+		enoughlen<=2'b10;
+	else if (finish_draw&&(length<(length_required+width_of_next))&&(length>length_required))
+		enoughlen<=2'b11;
+	end
+*/
+
+	
+
+	wire ani_delay;
+ BitCounter1 animation_delay(clk,resetn,counting,d);
+//1s
+ assign ani_delay = (d == 27'b0)?1:0;
+
+
+
+	always@(posedge clk)
+	begin
+	if(!resetn)
+		length<=7'b0;
+	else if(go_increase)
+		length <= length +1'b1;
+		
+	end
+	
+
+	
+	
+	 
+	 reg [5:0] current_state, next_state; 
+	 localparam start =0,
+					waitforkey =1,
+					draw=2,
+					waitdraw=3,
+					clearplot=4,
+					rotate=5,
+					clearrotate=6,
+					flat=7,
+					stop=8,
+					clearall=9,
+					standby=10;
+	 
+	 always@(*)
+	 begin :state_table
+	 case(current_state)
+		start:next_state=key2?waitforkey:start;
+		waitforkey:next_state=pressed?draw:waitforkey;
+		draw:next_state=finish_draw?waitdraw:draw;
+		waitdraw:next_state=pressed?draw:clearplot;
+		clearplot:next_state=finish_clearplot?rotate:clearplot;
+		rotate:next_state=(finish_rotate && ani_delay)?clearrotate:rotate;
+		clearrotate:next_state=(finish_clearrotate)?flat:clearrotate;
+		flat:next_state=finish_flat?stop:flat;
+		stop:next_state=key2?clearall:stop;
+		clearall:next_state=finish?start:clearall;
+		
+		endcase
+		end
+		
+		
+		always@(*)
+		begin: enable_signals
+		go_start=0;
+		go_plot=0;
+		go_clear=0;
+		go_rotate=0;
+		go_flat=0;
+		go_standby=0;
+		go_clearplot=0;
+		go_clearrotate=0;
+		case(current_state)
+		start:go_start=1;
+		draw:go_plot=1;
+		rotate:go_rotate=1;
+		flat:go_flat=1;
+		clearall:go_clear=1;
+		standby:go_standby=1;
+		clearplot:go_clearplot=1;
+		clearrotate:go_clearrotate=1;
+		endcase
+		end
+		
+		always@(posedge clk)
+		begin:state_FFS
+			if(!resetn)
+				current_state<=start;
+			else if (clear)
+				current_state<=clearall;
+			else
+				current_state<=next_state;
+				
+		end
+		
+		
+	 endmodule 
+	 
+	 
+module BitCounter(clock,clear_b,enable,q);
+input clock,clear_b,enable;
+output reg [24:0] q; // declare q
+always @(posedge clock) // triggered every time clock rises
+		begin
+		if (clear_b == 1'b0) // when Clear b is 0
+			q <= 25'b10111110101111000001111; // q is set to 4hz
+		else if (q == 25'b0) // when q is the maximum value for the counter
+			q <= 25'b10111110101111000001111;  // q reset to 0
+		else if (enable == 1'b1) 
+			q <= q - 1;
+end
+endmodule 
+
+module BitCounter1(clock,clear_b,enable,q);
+input clock,clear_b,enable;
+output reg [26:0] q; // declare q
+always @(posedge clock) // triggered every time clock rises
+		begin
+		if (clear_b == 1'b0) // when Clear b is 0
+			q <= 27'b10111110101111000001111111; // q is set to 4hz
+		else if (q == 25'b0) // when q is the maximum value for the counter
+			q <= 27'b10111110101111000001111111;  // q reset to 0
+		else if (enable == 1'b1) 
+			q <= q - 1;
+end
+endmodule 
+
+/*
+module increaseEnable(q,go_increase);
+input [24:0] q; 
+output go_increase;
+assign  go_increase = (q == 25'b0)?1:0;
+endmodule
+	*/ 
+	 
+	 
+
+
