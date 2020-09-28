@@ -1,0 +1,103 @@
+
+State Machine - |finalproject|figure_cycle:fc|current_state
+Name current_state.start current_state.erase current_state.draw current_state.waitstart current_state.formfigure 
+current_state.waitstart 0 0 0 0 0 
+current_state.draw 0 0 1 1 0 
+current_state.erase 0 1 0 1 0 
+current_state.start 1 0 0 1 0 
+current_state.formfigure 0 0 0 1 1 
+
+State Machine - |finalproject|landscape_cycle:lc|current_state
+Name current_state.start current_state.formlandscape current_state.plotlandscape 
+current_state.start 0 0 0 
+current_state.plotlandscape 1 0 1 
+current_state.formlandscape 1 1 0 
+
+State Machine - |finalproject|game_cycle:gc|current_state
+Name current_state.start current_state.welcome current_state.figure current_state.resetmovefigure current_state.movefigure current_state.ifrestart current_state.gamecontinue current_state.gameover current_state.compare current_state.resetstick current_state.stick current_state.landscape current_state.clearallspace current_state.generateland current_state.setupwelcome 
+current_state.setupwelcome 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+current_state.generateland 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 
+current_state.clearallspace 0 0 0 0 0 0 0 0 0 0 0 0 1 0 1 
+current_state.landscape 0 0 0 0 0 0 0 0 0 0 0 1 0 0 1 
+current_state.stick 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 
+current_state.resetstick 0 0 0 0 0 0 0 0 0 1 0 0 0 0 1 
+current_state.compare 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1 
+current_state.gameover 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 
+current_state.gamecontinue 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 
+current_state.ifrestart 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 
+current_state.movefigure 0 0 0 0 1 0 0 0 0 0 0 0 0 0 1 
+current_state.resetmovefigure 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 
+current_state.figure 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 
+current_state.welcome 0 1 0 0 0 0 0 0 0 0 0 0 0 0 1 
+current_state.start 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 
+
+State Machine - |finalproject|stick_cycle:Sc|current_state
+Name current_state.standby current_state.clearall current_state.stop current_state.flat current_state.clearrotate current_state.rotate current_state.clearplot current_state.waitdraw current_state.draw current_state.waitforkey current_state.start 
+current_state.start 0 0 0 0 0 0 0 0 0 0 0 
+current_state.waitforkey 0 0 0 0 0 0 0 0 0 1 1 
+current_state.draw 0 0 0 0 0 0 0 0 1 0 1 
+current_state.waitdraw 0 0 0 0 0 0 0 1 0 0 1 
+current_state.clearplot 0 0 0 0 0 0 1 0 0 0 1 
+current_state.rotate 0 0 0 0 0 1 0 0 0 0 1 
+current_state.clearrotate 0 0 0 0 1 0 0 0 0 0 1 
+current_state.flat 0 0 0 1 0 0 0 0 0 0 1 
+current_state.stop 0 0 1 0 0 0 0 0 0 0 1 
+current_state.clearall 0 1 0 0 0 0 0 0 0 0 1 
+current_state.standby 1 0 0 0 0 0 0 0 0 0 1 
+
+State Machine - |finalproject|keyboardR:key13|current_state
+Name current_state.wait4 current_state.wait3 current_state.wait2 current_state.wait1 current_state.releasekey current_state.keypressed current_state.waitkey 
+current_state.waitkey 0 0 0 0 0 0 0 
+current_state.keypressed 0 0 0 0 0 1 1 
+current_state.releasekey 0 0 0 0 1 0 1 
+current_state.wait1 0 0 0 1 0 0 1 
+current_state.wait2 0 0 1 0 0 0 1 
+current_state.wait3 0 1 0 0 0 0 1 
+current_state.wait4 1 0 0 0 0 0 1 
+
+State Machine - |finalproject|keyboardENTER:key12|current_state
+Name current_state.wait4 current_state.wait3 current_state.wait2 current_state.wait1 current_state.releasekey current_state.keypressed current_state.waitkey 
+current_state.waitkey 0 0 0 0 0 0 0 
+current_state.keypressed 0 0 0 0 0 1 1 
+current_state.releasekey 0 0 0 0 1 0 1 
+current_state.wait1 0 0 0 1 0 0 1 
+current_state.wait2 0 0 1 0 0 0 1 
+current_state.wait3 0 1 0 0 0 0 1 
+current_state.wait4 1 0 0 0 0 0 1 
+
+State Machine - |finalproject|keyboardSPACE:key11|current_state
+Name current_state.wait4 current_state.wait3 current_state.wait2 current_state.wait1 current_state.releasekey current_state.keypressed current_state.waitkey 
+current_state.waitkey 0 0 0 0 0 0 0 
+current_state.keypressed 0 0 0 0 0 1 1 
+current_state.releasekey 0 0 0 0 1 0 1 
+current_state.wait1 0 0 0 1 0 0 1 
+current_state.wait2 0 0 1 0 0 0 1 
+current_state.wait3 0 1 0 0 0 0 1 
+current_state.wait4 1 0 0 0 0 0 1 
+
+State Machine - |finalproject|PS2_Controller:ps2|s_ps2_transceiver
+Name s_ps2_transceiver.PS2_STATE_3_END_TRANSFER s_ps2_transceiver.PS2_STATE_2_COMMAND_OUT s_ps2_transceiver.PS2_STATE_1_DATA_IN s_ps2_transceiver.PS2_STATE_0_IDLE s_ps2_transceiver.PS2_STATE_4_END_DELAYED 
+s_ps2_transceiver.PS2_STATE_0_IDLE 0 0 0 0 0 
+s_ps2_transceiver.PS2_STATE_1_DATA_IN 0 0 1 1 0 
+s_ps2_transceiver.PS2_STATE_2_COMMAND_OUT 0 1 0 1 0 
+s_ps2_transceiver.PS2_STATE_3_END_TRANSFER 1 0 0 1 0 
+s_ps2_transceiver.PS2_STATE_4_END_DELAYED 0 0 0 1 1 
+
+State Machine - |finalproject|PS2_Controller:ps2|Altera_UP_PS2_Command_Out:PS2_Command_Out|s_ps2_transmitter
+Name s_ps2_transmitter.PS2_STATE_7_TRANSMISSION_ERROR s_ps2_transmitter.PS2_STATE_6_COMMAND_WAS_SENT s_ps2_transmitter.PS2_STATE_5_RECEIVE_ACK_BIT s_ps2_transmitter.PS2_STATE_4_TRANSMIT_STOP_BIT s_ps2_transmitter.PS2_STATE_3_TRANSMIT_DATA s_ps2_transmitter.PS2_STATE_2_WAIT_FOR_CLOCK s_ps2_transmitter.PS2_STATE_1_INITIATE_COMMUNICATION s_ps2_transmitter.PS2_STATE_0_IDLE 
+s_ps2_transmitter.PS2_STATE_0_IDLE 0 0 0 0 0 0 0 0 
+s_ps2_transmitter.PS2_STATE_1_INITIATE_COMMUNICATION 0 0 0 0 0 0 1 1 
+s_ps2_transmitter.PS2_STATE_2_WAIT_FOR_CLOCK 0 0 0 0 0 1 0 1 
+s_ps2_transmitter.PS2_STATE_3_TRANSMIT_DATA 0 0 0 0 1 0 0 1 
+s_ps2_transmitter.PS2_STATE_4_TRANSMIT_STOP_BIT 0 0 0 1 0 0 0 1 
+s_ps2_transmitter.PS2_STATE_5_RECEIVE_ACK_BIT 0 0 1 0 0 0 0 1 
+s_ps2_transmitter.PS2_STATE_6_COMMAND_WAS_SENT 0 1 0 0 0 0 0 1 
+s_ps2_transmitter.PS2_STATE_7_TRANSMISSION_ERROR 1 0 0 0 0 0 0 1 
+
+State Machine - |finalproject|PS2_Controller:ps2|Altera_UP_PS2_Data_In:PS2_Data_In|s_ps2_receiver
+Name s_ps2_receiver.PS2_STATE_3_PARITY_IN s_ps2_receiver.PS2_STATE_2_DATA_IN s_ps2_receiver.PS2_STATE_1_WAIT_FOR_DATA s_ps2_receiver.PS2_STATE_0_IDLE s_ps2_receiver.PS2_STATE_4_STOP_IN 
+s_ps2_receiver.PS2_STATE_0_IDLE 0 0 0 0 0 
+s_ps2_receiver.PS2_STATE_1_WAIT_FOR_DATA 0 0 1 1 0 
+s_ps2_receiver.PS2_STATE_2_DATA_IN 0 1 0 1 0 
+s_ps2_receiver.PS2_STATE_3_PARITY_IN 1 0 0 1 0 
+s_ps2_receiver.PS2_STATE_4_STOP_IN 0 0 0 1 1 
